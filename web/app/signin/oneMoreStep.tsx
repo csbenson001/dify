@@ -4,16 +4,15 @@ import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
-import { useContext } from 'use-context-selector'
+// import { useContext } from 'use-context-selector'
 import Button from '@/app/components/base/button'
-import Tooltip from '@/app/components/base/tooltip/index'
-
+import Tooltip from '@/app/components/base/tooltip'
 import { SimpleSelect } from '@/app/components/base/select'
 import { timezones } from '@/utils/timezone'
-import { languageMaps, languages } from '@/utils/language'
+import { LanguagesSupported, languages } from '@/i18n/language'
 import { oneMoreStep } from '@/service/common'
 import Toast from '@/app/components/base/toast'
-import I18n from '@/context/i18n'
+// import I18n from '@/context/i18n'
 
 type IState = {
   formState: 'processing' | 'error' | 'success' | 'initial'
@@ -47,7 +46,7 @@ const reducer = (state: IState, action: any) => {
 const OneMoreStep = () => {
   const { t } = useTranslation()
   const router = useRouter()
-  const { locale } = useContext(I18n)
+  // const { locale } = useContext(I18n)
 
   const [state, dispatch] = useReducer(reducer, {
     formState: 'initial',
@@ -88,9 +87,7 @@ const OneMoreStep = () => {
             <label className="my-2 flex items-center justify-between text-sm font-medium text-gray-900">
               {t('login.invitationCode')}
               <Tooltip
-                clickable
-                selector='dont-have'
-                htmlContent={
+                popupContent={
                   <div className='w-[256px] text-xs font-medium'>
                     <div className='font-medium'>{t('login.sendUsMail')}</div>
                     <div className='text-xs font-medium cursor-pointer text-primary-600'>
@@ -98,6 +95,7 @@ const OneMoreStep = () => {
                     </div>
                   </div>
                 }
+                needsDelay
               >
                 <span className='cursor-pointer text-primary-600'>{t('login.donthave')}</span>
               </Tooltip>
@@ -121,8 +119,8 @@ const OneMoreStep = () => {
             </label>
             <div className="relative mt-1 rounded-md shadow-sm">
               <SimpleSelect
-                defaultValue={languageMaps.en}
-                items={languages}
+                defaultValue={LanguagesSupported[0]}
+                items={languages.filter(item => item.supported)}
                 onSelect={(item) => {
                   dispatch({ type: 'interface_language', value: item.value })
                 }}
@@ -145,8 +143,8 @@ const OneMoreStep = () => {
           </div>
           <div>
             <Button
-              type='primary'
-              className='w-full !fone-medium !text-sm'
+              variant='primary'
+              className='w-full'
               disabled={state.formState === 'processing'}
               onClick={() => {
                 dispatch({ type: 'formState', value: 'processing' })
@@ -160,8 +158,8 @@ const OneMoreStep = () => {
             &nbsp;
             <Link
               className='text-primary-600'
-              target={'_blank'}
-              href={`https://docs.dify.ai/${locale === 'en' ? '' : `v/${locale.toLowerCase()}`}/community/open-source`}
+              target='_blank' rel='noopener noreferrer'
+              href={'https://docs.dify.ai/user-agreement/open-source'}
             >{t('login.license.link')}</Link>
           </div>
         </div>

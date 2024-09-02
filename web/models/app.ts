@@ -1,6 +1,5 @@
-import type { App, AppTemplate, SiteConfig } from '@/types/app'
-
-export type AppMode = 'chat' | 'completion'
+import type { LangFuseConfig, LangSmithConfig, TracingProvider } from '@/app/(commonLayout)/app/(appDetailLayout)/[appId]/overview/tracing/type'
+import type { App, AppSSO, AppTemplate, SiteConfig } from '@/types/app'
 
 /* export type App = {
   id: string
@@ -68,6 +67,7 @@ export type AppListResponse = {
 }
 
 export type AppDetailResponse = App
+export type AppSSOResponse = { enabled: AppSSO['enable_sso'] }
 
 export type AppTemplatesResponse = {
   data: AppTemplate[]
@@ -77,8 +77,16 @@ export type CreateAppResponse = App
 
 export type UpdateAppSiteCodeResponse = { app_id: string } & SiteConfig
 
+export type AppDailyMessagesResponse = {
+  data: Array<{ date: string; message_count: number }>
+}
+
 export type AppDailyConversationsResponse = {
   data: Array<{ date: string; conversation_count: number }>
+}
+
+export type WorkflowDailyConversationsResponse = {
+  data: Array<{ date: string; runs: number }>
 }
 
 export type AppStatisticsResponse = {
@@ -121,4 +129,19 @@ export type UpdateOpenAIKeyResponse = ValidateOpenAIKeyResponse
 
 export type GenerationIntroductionResponse = {
   introduction: string
+}
+
+export type AppVoicesListResponse = [{
+  name: string
+  value: string
+}]
+
+export type TracingStatus = {
+  enabled: boolean
+  tracing_provider: TracingProvider | null
+}
+
+export type TracingConfig = {
+  tracing_provider: TracingProvider
+  tracing_config: LangSmithConfig | LangFuseConfig
 }

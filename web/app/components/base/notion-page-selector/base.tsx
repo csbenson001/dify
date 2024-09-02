@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
-import { useContext } from 'use-context-selector'
 import useSWR from 'swr'
-import cn from 'classnames'
 import s from './base.module.css'
 import WorkspaceSelector from './workspace-selector'
 import SearchInput from './search-input'
 import PageSelector from './page-selector'
+import cn from '@/utils/classnames'
 import { preImportNotionPages } from '@/service/datasets'
-import AccountSetting from '@/app/components/header/account-setting'
 import { NotionConnector } from '@/app/components/datasets/create/step-one'
 import type { DataSourceNotionPageMap, DataSourceNotionWorkspace, NotionPage } from '@/models/common'
-import { ToastContext } from '@/app/components/base/toast'
-
+import { useModalContext } from '@/context/modal-context'
 
 type NotionPageSelectorProps = {
   value?: string[]
@@ -21,8 +17,6 @@ type NotionPageSelectorProps = {
   previewPageId?: string
   onPreview?: (selectedPage: NotionPage) => void
   datasetId?: string
-  countLimit: number
-  countUsed: number
 }
 
 const NotionPageSelector = ({
@@ -32,16 +26,12 @@ const NotionPageSelector = ({
   previewPageId,
   onPreview,
   datasetId = '',
-  countLimit,
-  countUsed,
 }: NotionPageSelectorProps) => {
-  const { t } = useTranslation()
-  const { notify } = useContext(ToastContext)
   const { data, mutate } = useSWR({ url: '/notion/pre-import/pages', datasetId }, preImportNotionPages)
   const [prevData, setPrevData] = useState(data)
   const [searchValue, setSearchValue] = useState('')
-  const [showDataSourceSetting, setShowDataSourceSetting] = useState(false)
   const [currentWorkspaceId, setCurrentWorkspaceId] = useState('')
+  const { setShowAccountSettingModal } = useModalContext()
 
   const notionWorkspaces = useMemo(() => {
     return data?.notion_info || []
@@ -49,12 +39,15 @@ const NotionPageSelector = ({
   const firstWorkspaceId = notionWorkspaces[0]?.workspace_id
   const currentWorkspace = notionWorkspaces.find(workspace => workspace.workspace_id === currentWorkspaceId)
 
-  const getPagesMapAndSelectedPagesId: [DataSourceNotionPageMap, Set<string>] = useMemo(() => {
+  const getPagesMapAndSelectedPagesId: [DataSourceNotionPageMap, Set<string>, Set<string>] = useMemo(() => {
     const selectedPagesId = new Set<string>()
+    const boundPagesId = new Set<string>()
     const pagesMap = notionWorkspaces.reduce((prev: DataSourceNotionPageMap, next: DataSourceNotionWorkspace) => {
       next.pages.forEach((page) => {
-        if (page.is_bound)
+        if (page.is_bound) {
           selectedPagesId.add(page.page_id)
+          boundPagesId.add(page.page_id)
+        }
         prev[page.page_id] = {
           ...page,
           workspace_id: next.workspace_id,
@@ -63,7 +56,7 @@ const NotionPageSelector = ({
 
       return prev
     }, {})
-    return [pagesMap, selectedPagesId]
+    return [pagesMap, selectedPagesId, boundPagesId]
   }, [notionWorkspaces])
   const defaultSelectedPagesId = [...Array.from(getPagesMapAndSelectedPagesId[1]), ...(value || [])]
   const [selectedPagesId, setSelectedPagesId] = useState<Set<string>>(new Set(defaultSelectedPagesId))
@@ -81,10 +74,7 @@ const NotionPageSelector = ({
   }, [])
   const handleSelecPages = (newSelectedPagesId: Set<string>) => {
     const selectedPages = Array.from(newSelectedPagesId).map(pageId => getPagesMapAndSelectedPagesId[0][pageId])
-    if (selectedPages.length > countLimit - countUsed) {
-      notify({ type: 'error', message: t('datasetCreation.stepOne.overCountLimit', { countLimit }) })
-      return false
-    }
+
     setSelectedPagesId(new Set(Array.from(newSelectedPagesId)))
     onSelect(selectedPages)
   }
@@ -112,7 +102,7 @@ const NotionPageSelector = ({
                 <div className='mx-1 w-[1px] h-3 bg-gray-200' />
                 <div
                   className={cn(s['setting-icon'], 'w-6 h-6 cursor-pointer')}
-                  onClick={() => setShowDataSourceSetting(true)}
+                  onClick={() => setShowAccountSettingModal({ payload: 'data-source', onCancelCallback: mutate })}
                 />
                 <div className='grow' />
                 <SearchInput
@@ -123,6 +113,7 @@ const NotionPageSelector = ({
               <div className='rounded-b-xl overflow-hidden'>
                 <PageSelector
                   value={selectedPagesId}
+                  disabledValue={getPagesMapAndSelectedPagesId[2]}
                   searchValue={searchValue}
                   list={currentWorkspace?.pages || []}
                   pagesMap={getPagesMapAndSelectedPagesId[0]}
@@ -135,16 +126,8 @@ const NotionPageSelector = ({
             </>
           )
           : (
-            <NotionConnector onSetting={() => setShowDataSourceSetting(true)} />
+            <NotionConnector onSetting={() => setShowAccountSettingModal({ payload: 'data-source', onCancelCallback: mutate })} />
           )
-      }
-      {
-        showDataSourceSetting && (
-          <AccountSetting activeTab='data-source' onCancel={() => {
-            setShowDataSourceSetting(false)
-            mutate()
-          }} />
-        )
       }
     </div>
   )

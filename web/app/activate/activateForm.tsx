@@ -4,20 +4,19 @@ import { useContext } from 'use-context-selector'
 import { useTranslation } from 'react-i18next'
 import useSWR from 'swr'
 import { useSearchParams } from 'next/navigation'
-import cn from 'classnames'
 import Link from 'next/link'
 import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import style from './style.module.css'
+import cn from '@/utils/classnames'
 import Button from '@/app/components/base/button'
 
 import { SimpleSelect } from '@/app/components/base/select'
 import { timezones } from '@/utils/timezone'
-import { languageMaps, languages } from '@/utils/language'
+import { LanguagesSupported, languages } from '@/i18n/language'
 import { activateMember, invitationCheck } from '@/service/common'
 import Toast from '@/app/components/base/toast'
 import Loading from '@/app/components/base/loading'
 import I18n from '@/context/i18n'
-
 const validPassword = /^(?=.*[a-zA-Z])(?=.*\d).{8,}$/
 
 const ActivateForm = () => {
@@ -42,10 +41,9 @@ const ActivateForm = () => {
 
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
-  const [timezone, setTimezone] = useState('Asia/Shanghai')
-  const [language, setLanguage] = useState('en-US')
+  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const [language, setLanguage] = useState(locale)
   const [showSuccess, setShowSuccess] = useState(false)
-  const defaultLanguage = useCallback(() => (window.navigator.language.startsWith('zh') ? languageMaps['zh-Hans'] : languageMaps.en) || languageMaps.en, [])
 
   const showErrorMessage = useCallback((message: string) => {
     Toast.notify({
@@ -63,8 +61,10 @@ const ActivateForm = () => {
       showErrorMessage(t('login.error.passwordEmpty'))
       return false
     }
-    if (!validPassword.test(password))
+    if (!validPassword.test(password)) {
       showErrorMessage(t('login.error.passwordInvalid'))
+      return false
+    }
 
     return true
   }, [name, password, showErrorMessage, t])
@@ -85,7 +85,7 @@ const ActivateForm = () => {
           timezone,
         },
       })
-      setLocaleOnClient(language.startsWith('en') ? 'en' : 'zh-Hans', false)
+      setLocaleOnClient(language, false)
       setShowSuccess(true)
     }
     catch {
@@ -101,7 +101,7 @@ const ActivateForm = () => {
         'md:px-[108px]',
       )
     }>
-      {!checkRes && <Loading/>}
+      {!checkRes && <Loading />}
       {checkRes && !checkRes.is_valid && (
         <div className="flex flex-col md:w-[400px]">
           <div className="w-full mx-auto">
@@ -109,7 +109,7 @@ const ActivateForm = () => {
             <h2 className="text-[32px] font-bold text-gray-900">{t('login.invalid')}</h2>
           </div>
           <div className="w-full mx-auto mt-6">
-            <Button type='primary' className='w-full !fone-medium !text-sm'>
+            <Button variant='primary' className='w-full !text-sm'>
               <a href="https://dify.ai">{t('login.explore')}</a>
             </Button>
           </div>
@@ -170,8 +170,8 @@ const ActivateForm = () => {
                 </label>
                 <div className="relative mt-1 rounded-md shadow-sm">
                   <SimpleSelect
-                    defaultValue={defaultLanguage()}
-                    items={languages}
+                    defaultValue={LanguagesSupported[0]}
+                    items={languages.filter(item => item.supported)}
                     onSelect={(item) => {
                       setLanguage(item.value as string)
                     }}
@@ -195,8 +195,8 @@ const ActivateForm = () => {
               </div>
               <div>
                 <Button
-                  type='primary'
-                  className='w-full !fone-medium !text-sm'
+                  variant='primary'
+                  className='w-full !text-sm'
                   onClick={handleActivate}
                 >
                   {`${t('login.join')} ${checkRes.workspace_name}`}
@@ -207,8 +207,8 @@ const ActivateForm = () => {
                 &nbsp;
                 <Link
                   className='text-primary-600'
-                  target={'_blank'}
-                  href={`https://docs.dify.ai/${locale === 'en' ? '' : `v/${locale.toLowerCase()}`}/community/open-source`}
+                  target='_blank' rel='noopener noreferrer'
+                  href={`https://docs.dify.ai/${language !== LanguagesSupported[1] ? 'user-agreement' : `v/${locale.toLowerCase()}/policies`}/open-source`}
                 >{t('login.license.link')}</Link>
               </div>
             </div>
@@ -226,7 +226,7 @@ const ActivateForm = () => {
             </h2>
           </div>
           <div className="w-full mx-auto mt-6">
-            <Button type='primary' className='w-full !fone-medium !text-sm'>
+            <Button variant='primary' className='w-full !text-sm'>
               <a href="/signin">{t('login.activated')}</a>
             </Button>
           </div>

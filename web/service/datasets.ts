@@ -7,9 +7,11 @@ import type {
   DataSetListResponse,
   DocumentDetailResponse,
   DocumentListResponse,
+  ErrorDocsResponse,
   FileIndexingEstimateResponse,
   HitTestingRecordsResponse,
   HitTestingResponse,
+  IndexingEstimateParams,
   IndexingEstimateResponse,
   IndexingStatusBatchResponse,
   IndexingStatusResponse,
@@ -22,6 +24,11 @@ import type {
   createDocumentResponse,
 } from '@/models/datasets'
 import type { CommonResponse, DataSourceNotionWorkspace } from '@/models/common'
+import type {
+  ApikeysListResponse,
+  CreateApiKeyResponse,
+} from '@/models/app'
+import type { RetrievalConfig } from '@/types/app'
 
 // apis for documents in a dataset
 
@@ -43,7 +50,12 @@ export const fetchDatasetDetail: Fetcher<DataSet, string> = (datasetId: string) 
   return get<DataSet>(`/datasets/${datasetId}`)
 }
 
-export const updateDatasetSetting: Fetcher<DataSet, { datasetId: string; body: Partial<Pick<DataSet, 'name' | 'description' | 'permission' | 'indexing_technique'>> }> = ({ datasetId, body }) => {
+export const updateDatasetSetting: Fetcher<DataSet, {
+  datasetId: string
+  body: Partial<Pick<DataSet,
+    'name' | 'description' | 'permission' | 'partial_member_list' | 'indexing_technique' | 'retrieval_model' | 'embedding_model' | 'embedding_model_provider'
+  >>
+}> = ({ datasetId, body }) => {
   return patch<DataSet>(`/datasets/${datasetId}`, { body })
 }
 
@@ -58,6 +70,12 @@ export const fetchDatasets: Fetcher<DataSetListResponse, { url: string; params: 
 
 export const createEmptyDataset: Fetcher<DataSet, { name: string }> = ({ name }) => {
   return post<DataSet>('/datasets', { body: { name } })
+}
+
+export const checkIsUsedInApp: Fetcher<{ is_using: boolean }, string> = (id) => {
+  return get<{ is_using: boolean }>(`/datasets/${id}/use-check`, {}, {
+    silent: true,
+  })
 }
 
 export const deleteDataset: Fetcher<DataSet, string> = (datasetID) => {
@@ -102,6 +120,12 @@ export const fetchDocumentDetail: Fetcher<DocumentDetailResponse, CommonDocReq &
   return get<DocumentDetailResponse>(`/datasets/${datasetId}/documents/${documentId}`, { params })
 }
 
+export const renameDocumentName: Fetcher<CommonResponse, CommonDocReq & { name: string }> = ({ datasetId, documentId, name }) => {
+  return post<CommonResponse>(`/datasets/${datasetId}/documents/${documentId}/rename`, {
+    body: { name },
+  })
+}
+
 export const pauseDocIndexing: Fetcher<CommonResponse, CommonDocReq> = ({ datasetId, documentId }) => {
   return patch<CommonResponse>(`/datasets/${datasetId}/documents/${documentId}/processing/pause`)
 }
@@ -132,6 +156,10 @@ export const disableDocument: Fetcher<CommonResponse, CommonDocReq> = ({ dataset
 
 export const syncDocument: Fetcher<CommonResponse, CommonDocReq> = ({ datasetId, documentId }) => {
   return get<CommonResponse>(`/datasets/${datasetId}/documents/${documentId}/notion/sync`)
+}
+
+export const syncWebsite: Fetcher<CommonResponse, CommonDocReq> = ({ datasetId, documentId }) => {
+  return get<CommonResponse>(`/datasets/${datasetId}/documents/${documentId}/website-sync`)
 }
 
 export const preImportNotionPages: Fetcher<{ notion_info: DataSourceNotionWorkspace[] }, { url: string; datasetId?: string }> = ({ url, datasetId }) => {
@@ -177,18 +205,81 @@ export const checkSegmentBatchImportProgress: Fetcher<{ job_id: string; job_stat
 }
 
 // hit testing
-export const hitTesting: Fetcher<HitTestingResponse, { datasetId: string; queryText: string }> = ({ datasetId, queryText }) => {
-  return post<HitTestingResponse>(`/datasets/${datasetId}/hit-testing`, { body: { query: queryText } })
+export const hitTesting: Fetcher<HitTestingResponse, { datasetId: string; queryText: string; retrieval_model: RetrievalConfig }> = ({ datasetId, queryText, retrieval_model }) => {
+  return post<HitTestingResponse>(`/datasets/${datasetId}/hit-testing`, { body: { query: queryText, retrieval_model } })
 }
 
 export const fetchTestingRecords: Fetcher<HitTestingRecordsResponse, { datasetId: string; params: { page: number; limit: number } }> = ({ datasetId, params }) => {
   return get<HitTestingRecordsResponse>(`/datasets/${datasetId}/queries`, { params })
 }
 
-export const fetchFileIndexingEstimate: Fetcher<FileIndexingEstimateResponse, any> = (body: any) => {
+export const fetchFileIndexingEstimate: Fetcher<FileIndexingEstimateResponse, IndexingEstimateParams> = (body: IndexingEstimateParams) => {
   return post<FileIndexingEstimateResponse>('/datasets/indexing-estimate', { body })
 }
 
 export const fetchNotionPagePreview: Fetcher<{ content: string }, { workspaceID: string; pageID: string; pageType: string }> = ({ workspaceID, pageID, pageType }) => {
   return get<{ content: string }>(`notion/workspaces/${workspaceID}/pages/${pageID}/${pageType}/preview`)
+}
+
+export const fetchApiKeysList: Fetcher<ApikeysListResponse, { url: string; params: Record<string, any> }> = ({ url, params }) => {
+  return get<ApikeysListResponse>(url, params)
+}
+
+export const delApikey: Fetcher<CommonResponse, { url: string; params: Record<string, any> }> = ({ url, params }) => {
+  return del<CommonResponse>(url, params)
+}
+
+export const createApikey: Fetcher<CreateApiKeyResponse, { url: string; body: Record<string, any> }> = ({ url, body }) => {
+  return post<CreateApiKeyResponse>(url, body)
+}
+
+export const fetchDatasetApiBaseUrl: Fetcher<{ api_base_url: string }, string> = (url) => {
+  return get<{ api_base_url: string }>(url)
+}
+
+export const fetchDataSources = () => {
+  return get<CommonResponse>('api-key-auth/data-source')
+}
+
+export const createDataSourceApiKeyBinding: Fetcher<CommonResponse, Record<string, any>> = (body) => {
+  return post<CommonResponse>('api-key-auth/data-source/binding', { body })
+}
+
+export const removeDataSourceApiKeyBinding: Fetcher<CommonResponse, string> = (id: string) => {
+  return del<CommonResponse>(`api-key-auth/data-source/${id}`)
+}
+
+export const createFirecrawlTask: Fetcher<CommonResponse, Record<string, any>> = (body) => {
+  return post<CommonResponse>('website/crawl', {
+    body: {
+      ...body,
+      provider: 'firecrawl',
+    },
+  })
+}
+
+export const checkFirecrawlTaskStatus: Fetcher<CommonResponse, string> = (jobId: string) => {
+  return get<CommonResponse>(`website/crawl/status/${jobId}`, {
+    params: {
+      provider: 'firecrawl',
+    },
+  }, {
+    silent: true,
+  })
+}
+
+type FileTypesRes = {
+  allowed_extensions: string[]
+}
+
+export const fetchSupportFileTypes: Fetcher<FileTypesRes, { url: string }> = ({ url }) => {
+  return get<FileTypesRes>(url)
+}
+
+export const getErrorDocs: Fetcher<ErrorDocsResponse, { datasetId: string }> = ({ datasetId }) => {
+  return get<ErrorDocsResponse>(`/datasets/${datasetId}/error-docs`)
+}
+
+export const retryErrorDocs: Fetcher<CommonResponse, { datasetId: string; document_ids: string[] }> = ({ datasetId, document_ids }) => {
+  return post<CommonResponse>(`/datasets/${datasetId}/retry`, { body: { document_ids } })
 }
